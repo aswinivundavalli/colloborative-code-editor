@@ -15,9 +15,9 @@ app.get('/', (request, response) => response.send('Hello World!'));
 app.get('/favicon.ico', (request, response) => response.status(204));
 
 app.get('/:roomID', (request, response) => {
-
-    if (request.params.roomID in docs) { response.send(docs[request.params.roomID]); return; }
-
+    //response.send({code:"console.log('Hello')"});
+    //return;
+    if (request.params.roomID in docs) { response.send({code:docs[request.params.roomID]}); return; }
     MongoClient.connect(uri, function(err, db) {
         var dbo = db.db("cce");
         dbo.collection("docs").find({roomID : request.params.roomID}).toArray(function(err, result) {
@@ -25,18 +25,23 @@ app.get('/:roomID', (request, response) => {
                 docs[request.params.roomID] = "NEW DOCUMENT " + request.params.roomID;
                 var object = { roomID: request.params.roomID, data: docs[request.params.roomID]};
                 dbo.collection("docs").insertOne(object, function(err, res) {db.close()})
-                response.send(docs[request.params.roomID]);
+                response.send({code:docs[request.params.roomID]});
+                //response.render('codeEditor.ejs', {message: docs[request.params.roomID], roomId: docs[request.params.roomID]});
             } else {
                 db.close();
                 docs[request.params.roomID] = result[0].data;
-                response.send(docs[request.params.roomID]);
+                response.send({code:docs[request.params.roomID]});
+                //response.render('codeEditor.ejs', {message: JSON.stringify(docs[request.params.roomID]), roomId: request.params.roomID});
             }
         })
     })
 })
 
-app.post('/:roomID', (request, response) => {
+app.get('/document/::roomID', (req, res) => {
+    response.send(docs[req.params.roomID]);
+})
 
+app.post('/:roomID', (request, response) => {
     MongoClient.connect(uri, function(err, db) {
         var dbo = db.db("cce");
         var query = { roomID: request.params.roomID };
@@ -44,7 +49,7 @@ app.post('/:roomID', (request, response) => {
         dbo.collection("docs").updateOne(query, newValue, function(err, result) {
             db.close();
             docs[request.params.roomID] = request.body['newData'];
-            response.send(request.body['newData']);
+            response.send({code:request.body['newData']});
         })
     })
 })
