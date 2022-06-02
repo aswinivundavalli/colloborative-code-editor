@@ -1,0 +1,23 @@
+<!-- Create a simple CodeMirror instance -->
+<html> 
+    <head>
+        <title> CCE </title>
+        <script src="node_modules/codemirror/lib/codemirror.js"></script>
+        <link href="node_modules/codemirror/lib/codemirror.css" rel = "stylesheet" />
+        <script src="node_modules/codemirror/mode/xml/xml.js"></script>
+        <link href="node_modules/codemirror/theme/darcula.css" rel = "stylesheet" />
+    </head>
+
+    <body>
+        <div id="editor">Text Area</div>
+        <script>
+            var data = document.getElementById('editor');
+            data.value = "";
+            var editor = CodeMirror.fromTextArea(data, {
+                mode: "xml",
+                theme: "dracula",
+                lineNumbers: true
+            })
+        </script>
+    </body>
+</html>

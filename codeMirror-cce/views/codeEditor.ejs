@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title> CCE </title>
+        <script src="node_modules/codemirror/lib/codemirror.js"></script>
+        <link href="node_modules/codemirror/lib/codemirror.css" rel = "stylesheet" />
+        <script src="node_modules/codemirror/mode/xml/xml.js"></script>
+        <link href="node_modules/codemirror/theme/darcula.css" rel = "stylesheet" />
+        <script src="node_modules/socket.io-client/dist/socket.io.js"></script>
+    </head>
+
+    <body>
+        <div id="editor">Code Area</div>
+        <script type="text/javascript" charset="utf-8">
+            var message = "<%= message %>";
+            var roomID = "<%= roomId %>";
+
+            var data = document.getElementById('editor');
+            data.value = message;
+            const editor = CodeMirror.fromTextArea(data, {
+                mode: "xml",
+                theme: "dracula",
+                lineNumbers: true
+            })
+
+            var socket = io();
+            socket.on('connect', () => {
+                socket.emit('CONNECTED_TO_ROOM', { roomID })
+            })
+
+            socket.on('ROOM:CONNECTION', () => {
+                console.log("ROOM:CONNECTION")
+            })
+
+            socket.on('CODE_CHANGED', (code) => {
+                editor.setValue(code)
+            })
+
+            socket.on('disconnect', () => {
+                socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
+            })
+
+            editor.on('change', (instance, changes) => {
+                const { origin } = changes
+                if (origin !== 'setValue') {
+                    socket.emit('CODE_CHANGED', instance.getValue())
+                }
+            })
+
+        </script>
+    </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "codemirror-cce",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "codemirror": "^5.65.5",
+    "cors": "^2.8.5",
+    "ejs": "^3.1.8",
+    "express": "^4.18.1",
+    "http": "^0.0.1-security",
+    "mongodb": "^4.6.0",
+    "socket.io": "^4.5.1",
+    "socket.io-client": "^4.5.1"
+  }
+}
