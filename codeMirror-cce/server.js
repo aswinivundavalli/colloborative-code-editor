@@ -2,12 +2,16 @@ const express = require('express')
 var bodyParser = require('body-parser')
 const path = require('path');
 const { Server } = require('socket.io')
-const http = require('http');
-const PORT = 8080
+const PORT = 8443
+const fs = require("fs");
+const https = require("https");
+
+const key = fs.readFileSync("localhost-key.pem", "utf-8");
+const cert = fs.readFileSync("localhost.pem", "utf-8");
 
 app = express()
-var server = http.createServer(app).listen(PORT, function(){
-  console.log("Express server listening at http://localhost:" + PORT);
+var server = https.createServer({ key, cert }, app).listen(PORT, function(){
+  console.log("Express server listening at https://localhost:" + PORT);
 });
 
 // set the view engine to ejs
@@ -22,7 +26,7 @@ app.use(bodyParser.json())
 app.use('/favicon.ico', express.static('images/favicon.ico'));
 
 app.use(express.static(__dirname + '/'));
-app.use('/favicon.ico', express.static('images/favicon.ico'));
+app.get('/favicon.ico', (req, res) => res.status(204));
 
 app.get('/', (request, response) => response.send('Code collaborative editor!'));
 
