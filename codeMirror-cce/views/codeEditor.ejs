@@ -12,11 +12,11 @@
     <body>
         <div id="editor">Code Area</div>
         <script type="text/javascript" charset="utf-8">
-            var message = "<%= message %>";
             var roomID = "<%= roomId %>";
+            var crdtData = [];
 
             var data = document.getElementById('editor');
-            data.value = message;
+            data.value = "";
             const editor = CodeMirror.fromTextArea(data, {
                 mode: "xml",
                 theme: "dracula",
@@ -32,21 +32,62 @@
                 console.log("ROOM:CONNECTION")
             })
 
-            socket.on('CODE_CHANGED', (code) => {
-                editor.setValue(code)
+            socket.on('CODE_CHANGED', (changes) => {
+                insertSyncCRDT(changes)
+                let cursorPtr = editor.getCursor();
+                editor.setValue(getText())
+                editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
             })
 
             socket.on('disconnect', () => {
                 socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
             })
 
+            socket.on('INITIAL_DOCUMENT', (messageData) => {
+                crdtData = messageData['crdtData']
+                editor.setValue(getText())
+            })
+
             editor.on('change', (instance, changes) => {
-                const { origin } = changes
-                if (origin !== 'setValue') {
-                    socket.emit('CODE_CHANGED', instance.getValue())
+                if (changes['origin'] === '+input') {
+                    socket.emit('CODE_CHANGED', insertLocalCRDT(changes['text'], changes['from']['line'], changes['from']['ch']))
+                } else if (origin === '+delete') {
+                    console.log('Delete implementation in progress')
                 }
             })
 
+            function getText() {
+                let text = "";
+                for (var lineID = 0; lineID < crdtData.length; ++lineID) {
+                    for (let i in crdtData[lineID]) text += crdtData[lineID][i][0]
+                    if (lineID !== (crdtData.length - 1)) text += '\n'
+                }
+                return text;
+            }
+
+            function insertLocalCRDT(textChanged, lineID, charID) {
+                var crdtChange = { origin: 'insert', line: lineID, char: charID, update: [] }
+                if (textChanged.length === 1) {
+                    console.log('Change affects in the same line')
+                    if (textChanged[0].length === 1) {
+                        console.log('Single Character change')
+                        if (charID === crdtData[lineID].length) {
+                            console.log('Char appended to the end of the line')
+                            crdtChange['update'].push([textChanged[0][0], charID])
+                            crdtData[lineID].push([textChanged[0][0], charID])
+                        }
+                    }
+                }
+                return crdtChange
+            }
+
+            function insertSyncCRDT(changes) {
+                let newLine = []
+                for (var i = 0; i < changes['char']; ++i) newLine.push(crdtData[changes['line']][i])
+                for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
+                for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
+                crdtData[changes['line']] = newLine
+            }
         </script>
     </body>
 </html>

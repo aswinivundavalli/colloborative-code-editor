@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@codemirror/collab": "^0.20.0",
+    "@codemirror/state": "^0.20.1",
     "codemirror": "^5.65.5",
     "cors": "^2.8.5",
     "ejs": "^3.1.8",
