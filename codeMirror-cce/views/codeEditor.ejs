@@ -7,13 +7,44 @@
         <script src="node_modules/codemirror/mode/xml/xml.js"></script>
         <link href="node_modules/codemirror/theme/darcula.css" rel = "stylesheet" />
         <script src="node_modules/socket.io-client/dist/socket.io.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+
+        <style>
+            li {
+                display: inline-block;
+                margin: 0 10px;
+            }
+        </style>
     </head>
 
     <body>
+        <div id="myModal" class="modal fade hide">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                    <h5 class="modal-title">Please enter a name</h5>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="form-group">
+                                <input type="text" id="userName" class="form-control" placeholder="Name">
+                            </div>
+                            <button type="button" onclick="setUserName()" class="btn btn-primary">Enter</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul id="dynamic-list"></ul>
+
         <div id="editor">Code Area</div>
         <script type="text/javascript" charset="utf-8">
             var roomID = "<%= roomId %>";
             var crdtData = [];
+            var socket;
 
             var data = document.getElementById('editor');
             data.value = "";
@@ -23,30 +54,54 @@
                 lineNumbers: true
             })
 
-            var socket = io();
-            socket.on('connect', () => {
-                socket.emit('CONNECTED_TO_ROOM', { roomID })
-            })
+            $(document).ready(function(){
+              $("#myModal").modal('show');
+            });
 
-            socket.on('ROOM:CONNECTION', () => {
-                console.log("ROOM:CONNECTION")
-            })
+            function setUserName(){
+                userName = document.getElementById('userName').value;
+                $("#myModal").modal('hide');
+                socket = io();
+                socket.on('connect', () => {
+                    console.log("USERNAME:", document.getElementById('userName').value)
+                    socket.emit('CONNECTED_TO_ROOM', { roomID: roomID, userName: userName })
+                })
+                run_socket();
+            }
 
-            socket.on('CODE_CHANGED', (changes) => {
-                insertSyncCRDT(changes)
-                let cursorPtr = editor.getCursor();
-                editor.setValue(getText())
-                editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
-            })
+            function updateUsers(users){
+                var ul = document.getElementById("dynamic-list");
+                ul.innerHTML = "";
+                for (var i = 0; i < users.length; i++){
+                    var li = document.createElement("li");
+                    li.appendChild(document.createTextNode(users[i]));
+                    ul.appendChild(li);
+                }
+            }
 
-            socket.on('disconnect', () => {
-                socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
-            })
+            function run_socket(){
+                socket.on('ROOM:CONNECTION', (users) => {
+                    console.log("ROOM:CONNECTION")
+                    console.log("Active users:", users)
+                    updateUsers(users)
+                })
 
-            socket.on('INITIAL_DOCUMENT', (messageData) => {
-                crdtData = messageData['crdtData']
-                editor.setValue(getText())
-            })
+                socket.on('CODE_CHANGED', (changes) => {
+                    insertSyncCRDT(changes)
+                    let cursorPtr = editor.getCursor();
+                    editor.setValue(getText())
+                    editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
+                })
+
+                socket.on('disconnect', () => {
+                    socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
+                })
+
+                socket.on('INITIAL_DOCUMENT', (messageData) => {
+                    crdtData = messageData['crdtData']
+                    editor.setValue(getText())
+                })
+            }     
 
             editor.on('change', (instance, changes) => {
                 if (changes['origin'] === '+input') {

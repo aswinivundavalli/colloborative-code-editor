@@ -2,7 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const path = require('path');
 const { Server } = require('socket.io')
-const PORT = 8443
+const PORT = 8080
 const fs = require("fs");
 const https = require("https");
 
@@ -60,6 +60,8 @@ class DocumentCache {
 }
 
 roomMap = {}
+var userMap = {} // socketID to userName Mapping
+var activeUsers = {} // Map document ID to list of active users
 DCInstance = new DocumentCache();
 
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -84,13 +86,27 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('user disconnected from: ' + roomMap[socket.id]);
+
+    // delete the user from the list of active users
+    roomID = roomMap[socket.id]
+    userName = userMap[socket.id]
+    activeUsers[roomID].delete(userName)
   })
 
-  socket.on('CONNECTED_TO_ROOM', async ({ roomID }) => {
-    socket.join(roomID)
-    roomMap[socket.id] = roomID
-    io.in(roomID).emit('ROOM:CONNECTION')
-    let crdtData = DCInstance.getCRDTData(roomID)
+  socket.on('CONNECTED_TO_ROOM', async (data) => {
+    socket.join(data.roomID)
+    roomMap[socket.id] = data.roomID
+    userMap[socket.id] = data.userName
+
+    if (data.roomID in activeUsers){
+      activeUsers[data.roomID].add(data.userName)
+    }
+    else{
+      activeUsers[data.roomID] = new Set()
+      activeUsers[data.roomID].add(data.userName)
+    }
+    io.in(data.roomID).emit('ROOM:CONNECTION', Array.from(activeUsers[data.roomID]))
+    let crdtData = DCInstance.getCRDTData(data.roomID)
     socket.emit('INITIAL_DOCUMENT', { crdtData })
   })
 
