@@ -57,6 +57,11 @@ class DocumentCache {
     for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
     this.cache[roomID]['crdtData'][changes['line']] = newLine
   }
+
+  deleteFromCRDT(roomID, changes) {
+    if (changes['update'].length === 1) this.cache[roomID]['crdtData'].splice(changes['line'] + 1, 1)
+    else this.cache[roomID]['crdtData'][changes['line']].splice(changes['char'], 1);
+  }
 }
 
 roomMap = {}
@@ -114,6 +119,7 @@ io.on('connection', (socket) => {
     const roomID = roomMap[socket.id]
     console.log(changes)
     if (changes['origin'] === 'insert') DCInstance.insertToCRDT(roomID, changes)
+    else DCInstance.deleteFromCRDT(roomID, changes)
     socket.to(roomID).emit('CODE_CHANGED', changes)
   })
 })

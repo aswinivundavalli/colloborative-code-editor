@@ -1,180 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <title> CCE </title>
-      <meta charset="UTF-8" />
-      <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <script src="node_modules/codemirror/lib/codemirror.js"></script>
-      <script src="node_modules/codemirror/mode/javascript/javascript.js"></script>
-      <script src="node_modules/socket.io-client/dist/socket.io.js"></script>
-      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-      <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
-      <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-      <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-      <link href="node_modules/codemirror/lib/codemirror.css" rel = "stylesheet" />
-      <link href="node_modules/codemirror/theme/base16-dark.css" rel = "stylesheet" />
-      <link href="public/css/style.css" rel="stylesheet"/>
-      <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet" >
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <head>
+        <title> CCE </title>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="node_modules/codemirror/lib/codemirror.js"></script>
+        <script src="node_modules/codemirror/mode/javascript/javascript.js"></script>
+        <script src="node_modules/socket.io-client/dist/socket.io.js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+        <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+        <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+        <link href="node_modules/codemirror/lib/codemirror.css" rel = "stylesheet" />
+        <link href="node_modules/codemirror/theme/base16-dark.css" rel = "stylesheet" />
+        <link href="public/css/style.css" rel="stylesheet"/>
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet" >
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
    </head>
    <body>
-      <div id="myModal" class="modal fade hide">
-         <div class="modal-dialog">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title">Please enter a name</h5>
-               </div>
-               <div class="modal-body">
-                  <form>
-                     <div class="form-group"><input type="text" id="userName" class="form-control" placeholder="Name"></div>
-                     <button type="button" onclick="setUserName()" class="btn btn-primary">Enter</button>
-                  </form>
-               </div>
+        <div id="myModal" class="modal fade hide">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Please enter a name</h5>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <div class="form-group"><input type="text" id="userName" class="form-control" placeholder="Name"></div>
+                            <button type="button" onclick="setUserName()" class="btn btn-primary">Enter</button>
+                        </form>
+                    </div>
+                </div>
             </div>
-         </div>
-      </div>
-      <div class="container--main">
-         <header class="header">
-            <h1 class="heading-primary">CCE</h1>
-            <a href="https://github.com/aswinivundavalli/colloborative-code-editor.git" target="_blank" ><ion-icon name="logo-github" class="github-icon"></ion-icon></a>
-         </header>
-         <section class="section--editor">
-            <div class="container">
-               <div class="grid grid--2-cols grid--center-v">
-                  <div class="code-editor">
-                     <div id="code-area">Code area</div>
-                  </div>
-                  <div class="active-users">
-                     <ul id="dynamic-list"></ul>
-                  </div>
-               </div>
-            </div>
-         </section>
-         <footer class="footer"> &copy; Copyright 2022 University of California, Irvine </footer>
-      </div>
-      <script type="text/javascript" charset="utf-8">
-         var roomID = "<%= roomId %>";
-         var crdtData = [];
-         var socket;
-         
-         var data = document.getElementById('code-area');
-         data.value = "";
-         const editor = CodeMirror.fromTextArea(data, {
-             mode: "javascript",
-             theme: "base16-dark",
-             lineNumbers: true
-         })
-         
-         $(document).ready(function(){
-           $("#myModal").modal('show');
-         });
-         
-         function setUserName(){
-             userName = document.getElementById('userName').value;
-             $("#myModal").modal('hide');
-             socket = io();
-             socket.on('connect', () => {
-                 console.log("USERNAME:", document.getElementById('userName').value)
-                 socket.emit('CONNECTED_TO_ROOM', { roomID: roomID, userName: userName })
-             })
-             runSocket();
-         }
-         
-         function updateUsers(users){
-             var ul = document.getElementById("dynamic-list");
-             ul.innerHTML = "";
-             var li = document.createElement("li");
-             li.appendChild(document.createTextNode("Active Users"));
-             ul.appendChild(li);
-             for (var i = 0; i < users.length; i++){
-                 var li = document.createElement("li");
-                 li.appendChild(document.createTextNode(users[i]));
-                 ul.appendChild(li);
-             }
-         }
-         
-         function runSocket(){
-             socket.on('ROOM:CONNECTION', (users) => {
-                 updateUsers(users)
-             })
-         
-             socket.on('CODE_CHANGED', (changes) => {
-                 insertSyncCRDT(changes)
-                 let cursorPtr = editor.getCursor();
-                 editor.setValue(getText())
-                 if (changes['origin'] === 'insert') {
-                     if ((cursorPtr.line === changes['line']) && (cursorPtr.ch > changes['char'])) editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch + 1})
-                     else editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
-                 }
-             })
-         
-             socket.on('disconnect', () => {
-                 socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
-             })
-         
-             socket.on('INITIAL_DOCUMENT', (messageData) => {
-                 crdtData = messageData['crdtData']
-                 editor.setValue(getText())
-             })
-         }     
-         
-         editor.on('change', (instance, changes) => {
-             if (changes['origin'] === '+input') {
-                 socket.emit('CODE_CHANGED', insertLocalCRDT(changes['text'], changes['from']['line'], changes['from']['ch']))
-             } else if (origin === '+delete') {
-                 console.log('Delete implementation in progress')
-             }
-         })
-         
-         function getText() {
-             let text = "";
-             for (var lineID = 0; lineID < crdtData.length; ++lineID) {
-                 for (let i in crdtData[lineID]) text += crdtData[lineID][i][0]
-                 if (lineID !== (crdtData.length - 1)) text += '\n'
-             }
-             return text;
-         }
-         
-         function insertLocalCRDT(textChanged, lineID, charID) {
-             var crdtChange = { origin: 'insert', line: lineID, char: charID, update: [] }                
-             if (textChanged.length === 1) {
-                 if (textChanged[0].length === 1) {
-                     var beforePosition = (charID === 0) ? [] : crdtData[lineID][charID - 1]
-                     var afterPosition = (charID === crdtData[lineID].length) ? [] : crdtData[lineID][charID]
-                     var newIndex = []
-                     for (var i = 0; i < Math.min(beforePosition.length, afterPosition.length); ++i) {
-                         if (afterPosition[i] - beforePosition[i] <= 1) { newIndex.push(beforePosition[i]); continue }
-                         newIndex.push((afterPosition[i] + beforePosition[i]) / 2)
-                         crdtChange['update'].push([textChanged[0][0], newIndex])
-                         crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
-                         return crdtChange
-                     }
-                     if (beforePosition.length === afterPosition.length) newIndex.push(5)
-                     else if (beforePosition.length < afterPosition.length) newIndex.push(afterPosition[beforePosition.length] - 1)
-                     else newIndex.push(afterPosition[beforePosition.length] - 1)
-         
-                     crdtChange['update'].push([textChanged[0][0], newIndex])
-                     crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
-                     return crdtChange
-                 }
-             } else {
-                 crdtChange['line'] = lineID + 1; crdtChange['char'] = 0
-                 crdtData.splice(lineID + 1, 0, [])
-             }
-             return crdtChange
-         }
-         
-         function insertSyncCRDT(changes) {
-             let newLine = []
-             if (changes['line'] === crdtData.length) { crdtData.push(newLine); return}
-             for (var i = 0; i < changes['char']; ++i) newLine.push(crdtData[changes['line']][i])
-             for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
-             for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
-             crdtData[changes['line']] = newLine
-         }
-      </script>
-   </body>
+        </div>
+        <div class="container--main">
+            <header class="header">
+                <h1 class="heading-primary">CCE</h1>
+                <a href="https://github.com/aswinivundavalli/colloborative-code-editor.git" target="_blank" ><ion-icon name="logo-github" class="github-icon"></ion-icon></a>
+            </header>
+            <section class="section--editor">
+                <div class="container">
+                    <div class="grid grid--2-cols grid--center-v">
+                        <div class="code-editor">
+                            <div id="code-area">Code area</div>
+                        </div>
+                        <div class="active-users">
+                            <ul id="dynamic-list"></ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <footer class="footer"> &copy; Copyright 2022 University of California, Irvine </footer>
+        </div>
+        <script type="text/javascript" charset="utf-8">
+            var roomID = "<%= roomId %>";
+            var crdtData = [];
+            var socket;
+
+            var data = document.getElementById('code-area');
+            data.value = "";
+            const editor = CodeMirror.fromTextArea(data, {
+                mode: "javascript",
+                theme: "base16-dark",
+                lineNumbers: true
+            })
+
+            $(document).ready(function(){
+            $("#myModal").modal('show');
+            });
+
+            function setUserName(){
+                userName = document.getElementById('userName').value;
+                $("#myModal").modal('hide');
+                socket = io();
+                socket.on('connect', () => {
+                    console.log("USERNAME:", document.getElementById('userName').value)
+                    socket.emit('CONNECTED_TO_ROOM', { roomID: roomID, userName: userName })
+                })
+                runSocket();
+            }
+
+            function updateUsers(users){
+                var ul = document.getElementById("dynamic-list");
+                ul.innerHTML = "";
+                var li = document.createElement("li");
+                li.appendChild(document.createTextNode("Active Users"));
+                ul.appendChild(li);
+                for (var i = 0; i < users.length; i++){
+                    var li = document.createElement("li");
+                    li.appendChild(document.createTextNode(users[i]));
+                    ul.appendChild(li);
+                }
+            }
+
+            function runSocket(){
+                socket.on('ROOM:CONNECTION', (users) => {
+                    updateUsers(users)
+                })
+
+                socket.on('CODE_CHANGED', (changes) => {
+                    let cursorPtr = editor.getCursor();
+                    if (changes['origin'] === 'insert') {
+                        insertSyncCRDT(changes)
+                        editor.setValue(getText())
+                        if ((cursorPtr.line === changes['line']) && (cursorPtr.ch > changes['char'])) editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch + 1})
+                        else editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
+                    } else {
+                        deleteSyncCRDT(changes)
+                        editor.setValue(getText())
+                    }
+                })
+
+                socket.on('disconnect', () => {
+                    socket.emit('DISSCONNECT_FROM_ROOM', { roomID })
+                })
+
+                socket.on('INITIAL_DOCUMENT', (messageData) => {
+                    crdtData = messageData['crdtData']
+                    editor.setValue(getText())
+                })
+            }     
+
+            editor.on('change', (instance, changes) => {
+                if (changes['origin'] === '+input') {
+                    socket.emit('CODE_CHANGED', insertLocalCRDT(changes['text'], changes['from']['line'], changes['from']['ch']))
+                } else if (changes['origin'] === '+delete') {
+                    console.log(changes)
+                    socket.emit('CODE_CHANGED', deleteLocalCRDT(changes['removed'], changes['from']['line'], changes['from']['ch']))
+                }
+            })
+
+            function getText() {
+                let text = "";
+                for (var lineID = 0; lineID < crdtData.length; ++lineID) {
+                    for (let i in crdtData[lineID]) text += crdtData[lineID][i][0]
+                    if (lineID !== (crdtData.length - 1)) text += '\n'
+                }
+                return text;
+            }
+
+            function deleteLocalCRDT(textRemoved, lineID, charID) {
+                var crdtChange = { origin: 'delete', line: lineID, char: charID, update: [] }                
+                if (textRemoved.length === 1) {
+                    if (textRemoved[0].length === 1) crdtData[lineID].splice(charID, 1);
+                } else {
+                    crdtData.splice(lineID + 1, 1)
+                    crdtChange['update'] = [['']]
+                }
+                return crdtChange
+            }
+
+            function insertLocalCRDT(textChanged, lineID, charID) {
+                var crdtChange = { origin: 'insert', line: lineID, char: charID, update: [] }                
+                if (textChanged.length === 1) {
+                    if (textChanged[0].length === 1) {
+                        var beforePosition = (charID === 0) ? [] : crdtData[lineID][charID - 1]
+                        var afterPosition = (charID === crdtData[lineID].length) ? [] : crdtData[lineID][charID]
+                        var newIndex = []
+                        for (var i = 0; i < Math.min(beforePosition.length, afterPosition.length); ++i) {
+                            if (afterPosition[i] - beforePosition[i] <= 1) { newIndex.push(beforePosition[i]); continue }
+                            newIndex.push((afterPosition[i] + beforePosition[i]) / 2)
+                            crdtChange['update'].push([textChanged[0][0], newIndex])
+                            crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
+                            return crdtChange
+                        }
+                        if (beforePosition.length === afterPosition.length) newIndex.push(5)
+                        else if (beforePosition.length < afterPosition.length) newIndex.push(afterPosition[beforePosition.length] - 1)
+                        else newIndex.push(afterPosition[beforePosition.length] - 1)
+
+                        crdtChange['update'].push([textChanged[0][0], newIndex])
+                        crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
+                        return crdtChange
+                    }
+                } else {
+                    crdtChange['line'] = lineID + 1; crdtChange['char'] = 0
+                    crdtData.splice(lineID + 1, 0, [])
+                }
+                return crdtChange
+            }
+
+            function insertSyncCRDT(changes) {
+                let newLine = []
+                if (changes['line'] === crdtData.length) { crdtData.push(newLine); return}
+                for (var i = 0; i < changes['char']; ++i) newLine.push(crdtData[changes['line']][i])
+                for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
+                for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
+                crdtData[changes['line']] = newLine
+            }
+
+            function deleteSyncCRDT(changes) {
+                if (changes['update'].length === 1) crdtData.splice(changes['line'] + 1, 1)
+                else crdtData[changes['line']].splice(changes['char'], 1);
+            }
+        </script>
+    </body>
 </html>
