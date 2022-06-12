@@ -14,20 +14,19 @@ var server = https.createServer({ key, cert }, app).listen(PORT, function(){
   console.log("Express server listening at https://localhost:" + PORT);
 });
 
-// set the view engine to ejs
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 function convertToCRDTData(text) {
-  messageData = []
+  crdtData = []
   let textLines = text.split(/\n/)
   for (let line in textLines) {
     var lineData = []
-    for (var i = 0; i < textLines[line].length; ++i) lineData.push([textLines[line][i], i])
-    messageData.push(lineData)
+    for (var i = 0; i < textLines[line].length; ++i) lineData.push([textLines[line][i], [i]])
+    crdtData.push(lineData)
   }
-  console.log(messageData)
-  return messageData;
+  console.log(crdtData)
+  return crdtData;
 }
 
 class DocumentCache {
@@ -52,10 +51,11 @@ class DocumentCache {
   insertToCRDT(roomID, changes) {
     let crdtData = this.cache[roomID]['crdtData']
     let newLine = []
+    if (changes['line'] === this.cache[roomID]['crdtData'].length) { this.cache[roomID]['crdtData'].push(newLine); return}
     for (var i = 0; i < changes['char'] - 1; ++i) newLine.push(crdtData[changes['line']][i])
     for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
     for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
-    crdtData[changes['line']] = newLine
+    this.cache[roomID]['crdtData'][changes['line']] = newLine
   }
 }
 

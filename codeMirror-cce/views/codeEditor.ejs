@@ -90,7 +90,10 @@
                     insertSyncCRDT(changes)
                     let cursorPtr = editor.getCursor();
                     editor.setValue(getText())
-                    editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
+                    if (changes['origin'] === 'insert') {
+                        if ((cursorPtr.line === changes['line']) && (cursorPtr.ch > changes['char'])) editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch + 1})
+                        else editor.setCursor({line: cursorPtr.line, ch: cursorPtr.ch})
+                    }
                 })
 
                 socket.on('disconnect', () => {
@@ -121,23 +124,37 @@
             }
 
             function insertLocalCRDT(textChanged, lineID, charID) {
-                var crdtChange = { origin: 'insert', line: lineID, char: charID, update: [] }
+                var crdtChange = { origin: 'insert', line: lineID, char: charID, update: [] }                
                 if (textChanged.length === 1) {
-                    console.log('Change affects in the same line')
                     if (textChanged[0].length === 1) {
-                        console.log('Single Character change')
-                        if (charID === crdtData[lineID].length) {
-                            console.log('Char appended to the end of the line')
-                            crdtChange['update'].push([textChanged[0][0], charID])
-                            crdtData[lineID].push([textChanged[0][0], charID])
+                        var beforePosition = (charID === 0) ? [] : crdtData[lineID][charID - 1]
+                        var afterPosition = (charID === crdtData[lineID].length) ? [] : crdtData[lineID][charID]
+                        var newIndex = []
+                        for (var i = 0; i < Math.min(beforePosition.length, afterPosition.length); ++i) {
+                            if (afterPosition[i] - beforePosition[i] <= 1) { newIndex.push(beforePosition[i]); continue }
+                            newIndex.push((afterPosition[i] + beforePosition[i]) / 2)
+                            crdtChange['update'].push([textChanged[0][0], newIndex])
+                            crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
+                            return crdtChange
                         }
+                        if (beforePosition.length === afterPosition.length) newIndex.push(5)
+                        else if (beforePosition.length < afterPosition.length) newIndex.push(afterPosition[beforePosition.length] - 1)
+                        else newIndex.push(afterPosition[beforePosition.length] - 1)
+
+                        crdtChange['update'].push([textChanged[0][0], newIndex])
+                        crdtData[lineID].splice(charID, 0, [textChanged[0][0], newIndex])
+                        return crdtChange
                     }
+                } else {
+                    crdtChange['line'] = lineID + 1; crdtChange['char'] = 0
+                    crdtData.splice(lineID + 1, 0, [])
                 }
                 return crdtChange
             }
 
             function insertSyncCRDT(changes) {
                 let newLine = []
+                if (changes['line'] === crdtData.length) { crdtData.push(newLine); return}
                 for (var i = 0; i < changes['char']; ++i) newLine.push(crdtData[changes['line']][i])
                 for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
                 for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
