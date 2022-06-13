@@ -5,9 +5,11 @@ const { Server } = require('socket.io')
 const PORT = 8080
 const fs = require("fs");
 const https = require("https");
+const MongoClient = require("mongodb").MongoClient;
 
 const key = fs.readFileSync("localhost-key.pem", "utf-8");
 const cert = fs.readFileSync("localhost.pem", "utf-8");
+const uri = "mongodb+srv://test:test@cce.gqrqens.mongodb.net/?retryWrites=true&w=majority";
 
 app = express()
 var server = https.createServer({ key, cert }, app).listen(PORT, function(){
@@ -28,6 +30,17 @@ function convertToCRDTData(text) {
   console.log(crdtData)
   return crdtData;
 }
+
+
+function getNormalData(crdtData){
+  var text = "";
+  for (var lineID = 0; lineID < crdtData.length; ++lineID) {
+      for (let i in crdtData[lineID]) text += crdtData[lineID][i][0]
+      if (lineID !== (crdtData.length - 1)) text += '\n'
+  }
+  return text;
+}
+
 
 class DocumentCache {
   constructor() { this.cache = {} }
@@ -64,10 +77,79 @@ class DocumentCache {
   }
 }
 
+class MongoDB {
+  async documentExist(roomID) {
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true }).catch(err => { console.log(err) })
+    let res = null
+    if (!client) return false
+    try {
+        const db = client.db("cce");
+        let collection = db.collection('docs')
+        let query = {roomID : roomID}
+        res = await collection.findOne(query);
+    } catch (err) {
+        return false
+    } finally {
+      client.close();
+      return res !== null;
+    }
+  }
+
+  async addDocumentToDB(roomID, data) {
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true }).catch(err => { console.log(err) })
+    if (!client) return
+    try {
+        const db = client.db("cce")
+        let collection = db.collection('docs')
+        var query = { roomID: roomID, data: data}
+        await collection.insertOne(query)
+    } catch (err) {
+        console.log(err);
+    } finally {
+        client.close();
+    }
+  }
+
+  async getDocumentFromDB(roomID){
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true }).catch(err => { console.log(err); });
+    if (!client) {return;}
+    var data = "";
+    try {
+        const db = client.db("cce");
+        let collection = db.collection('docs')
+        let res = await collection.findOne({roomID : roomID});
+        data = res.data
+    } catch (err) {
+        console.log(err);
+    } finally {
+        client.close();
+        return data;
+    }
+  }
+
+  async updateDocumentInDB(roomID, data) {
+    const client = await MongoClient.connect(uri, { useNewUrlParser: true }).catch(err => { console.log(err); });
+    if (!client) {return;}
+    try {
+        const db = client.db("cce");
+        let collection = db.collection('docs')
+        var query = { roomID: roomID};
+        var newValues = { $set: { roomID: roomID, data: data}};
+        await collection.updateOne(query, newValues)
+    } catch (err) {
+        console.log(err);
+    } finally {
+        client.close();
+    }
+  }
+}
+
+
 roomMap = {}
 var userMap = {} // socketID to userName Mapping
 var activeUsers = {} // Map document ID to list of active users
 DCInstance = new DocumentCache();
+MongoDBInstance = new MongoDB();
 
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
@@ -78,12 +160,20 @@ app.get('/favicon.ico', (req, res) => res.status(204));
 
 app.get('/', (request, response) => response.send('Code collaborative editor!'));
 
-app.get('/:roomID', function(request, response) {
+app.get('/:roomID', async function(request, response) {
+  console.time('timing')
   let roomID = request.params.roomID
-  console.log(roomID);
-  if (!DCInstance.documentExist(roomID)) DCInstance.addDocumentToCache(roomID, "New Document - " + roomID);
+  let documentData = "// New document - " + roomID
+  if (!DCInstance.documentExist(roomID)) {
+    let documentExist = await MongoDBInstance.documentExist(roomID)
+    if (!documentExist) MongoDBInstance.addDocumentToDB(roomID, documentData)
+    else documentData = await MongoDBInstance.getDocumentFromDB(roomID)
+    DCInstance.addDocumentToCache(roomID, documentData)
+  }
+  console.timeEnd('timing')
   response.render(path.join(__dirname, '/views/codeEditor.ejs'), {roomId: roomID});
 })
+
 
 const io = new Server(server)
 io.on('connection', (socket) => {
@@ -91,11 +181,19 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('user disconnected from: ' + roomMap[socket.id]);
-
     // delete the user from the list of active users
     roomID = roomMap[socket.id]
     userName = userMap[socket.id]
     activeUsers[roomID].delete(userName)
+    console.log("Active users:", activeUsers[roomID])
+    console.log("number of active users:", activeUsers[roomID].size)
+    if (activeUsers[roomID].size == 0){
+      console.log("All users disconnected");
+      let normalText = getNormalData(DCInstance.getCRDTData(roomID))
+      console.log(normalText);
+      MongoDBInstance.updateDocumentInDB(roomID, normalText)
+      console.log("Updated in the DB");
+    }
   })
 
   socket.on('CONNECTED_TO_ROOM', async (data) => {
@@ -116,10 +214,14 @@ io.on('connection', (socket) => {
   })
 
   socket.on('CODE_CHANGED', async (changes) => {
+    console.time('changesSync')
     const roomID = roomMap[socket.id]
-    console.log(changes)
+    console.log("changes: ", changes)
     if (changes['origin'] === 'insert') DCInstance.insertToCRDT(roomID, changes)
     else DCInstance.deleteFromCRDT(roomID, changes)
+    //let normalText = getNormalData(DCInstance.getCRDTData(roomID))
+    //MongoDBInstance.updateDocumentInDB(roomID, normalText)
     socket.to(roomID).emit('CODE_CHANGED', changes)
+    console.timeEnd('changesSync')
   })
 })
