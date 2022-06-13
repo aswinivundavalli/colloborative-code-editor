@@ -65,7 +65,7 @@ class DocumentCache {
     let crdtData = this.cache[roomID]['crdtData']
     let newLine = []
     if (changes['line'] === this.cache[roomID]['crdtData'].length) { this.cache[roomID]['crdtData'].push(newLine); return}
-    for (var i = 0; i < changes['char'] - 1; ++i) newLine.push(crdtData[changes['line']][i])
+    for (var i = 0; i < changes['char']; ++i) newLine.push(crdtData[changes['line']][i])
     for (var i = 0; i < changes['update'].length; ++i) newLine.push(changes['update'][i])
     for (var i = changes['char']; i < crdtData[changes['line']].length; ++i) newLine.push(crdtData[changes['line']][i])
     this.cache[roomID]['crdtData'][changes['line']] = newLine
