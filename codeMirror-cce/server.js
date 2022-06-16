@@ -6,12 +6,14 @@ const PORT = 8080
 const fs = require("fs");
 const https = require("https");
 const MongoClient = require("mongodb").MongoClient;
+const serverless = require('serverless-http');
 
 const key = fs.readFileSync("localhost-key.pem", "utf-8");
 const cert = fs.readFileSync("localhost.pem", "utf-8");
 const uri = "mongodb+srv://test:test@cce.gqrqens.mongodb.net/?retryWrites=true&w=majority";
 
 app = express()
+module.exports.handler = serverless(app);
 var server = https.createServer({ key, cert }, app).listen(PORT, function(){
   console.log("Express server listening at https://localhost:" + PORT);
 });
@@ -161,16 +163,7 @@ app.get('/favicon.ico', (req, res) => res.status(204));
 app.get('/', (request, response) => response.send('Code collaborative editor!'));
 
 app.get('/:roomID', async function(request, response) {
-  console.time('timing')
   let roomID = request.params.roomID
-  let documentData = "// New document - " + roomID
-  if (!DCInstance.documentExist(roomID)) {
-    let documentExist = await MongoDBInstance.documentExist(roomID)
-    if (!documentExist) MongoDBInstance.addDocumentToDB(roomID, documentData)
-    else documentData = await MongoDBInstance.getDocumentFromDB(roomID)
-    DCInstance.addDocumentToCache(roomID, documentData)
-  }
-  console.timeEnd('timing')
   response.render(path.join(__dirname, '/views/codeEditor.ejs'), {roomId: roomID});
 })
 
@@ -207,6 +200,14 @@ io.on('connection', (socket) => {
     else{
       activeUsers[data.roomID] = new Set()
       activeUsers[data.roomID].add(data.userName)
+    }
+
+    let documentData = "// New document - " + data.roomID
+    if (!DCInstance.documentExist(data.roomID)) {
+      let documentExist = await MongoDBInstance.documentExist(data.roomID)
+      if (!documentExist) MongoDBInstance.addDocumentToDB(data.roomID, documentData)
+      else documentData = await MongoDBInstance.getDocumentFromDB(data.roomID)
+      DCInstance.addDocumentToCache(data.roomID, documentData)
     }
     io.in(data.roomID).emit('ROOM:CONNECTION', Array.from(activeUsers[data.roomID]))
     let crdtData = DCInstance.getCRDTData(data.roomID)
